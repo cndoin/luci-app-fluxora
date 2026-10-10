@@ -1,0 +1,72 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build, backend and three-language browser checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: python3 build.py && python3 test_backend.py
+      - run: npm ci && npx playwright install --with-deps chromium && npm test
+      - name: Build APK and convenience bundles with apk-tools v3
+        run: docker run --rm -v "$PWD:/src" -w /src python:3.12-alpine3.23 python build.py --format all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            dist/*.ipk
+            dist/*.apk
+            dist/*.zip
+            dist/SHA256SUMS
+            dist/MD5SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-check
+          path: test-cache/ui-stress.json
+  compatibility:
+    name: OpenWrt ${{ matrix.target }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [23.05-x86, 24.10-x86, 24.10-arm32, 24.10-arm64, 25.12-x86]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - name: Install ARM emulation tools
+        if: contains(matrix.target, 'arm')
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static
+      - name: Check real opkg
+        if: matrix.target != '25.12-x86'
+        run: sudo python3 test_compatibility.py --target '${{ matrix.target }}'
+      - name: Check real OpenWrt apk
+        if: matrix.target == '25.12-x86'
+        run: docker run --rm -v "$PWD:/src" -w /src python:3.12-alpine3.23 sh -c 'apk add --no-cache curl && python test_compatibility.py --target 25.12-x86'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compatibility-${{ matrix.target }}
+          path: |
+            test-cache/compat-*.log
+            test-cache/compatibility-*.json

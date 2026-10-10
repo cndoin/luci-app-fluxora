@@ -1,0 +1,9 @@
+/dist/
+/preview/
+/test-cache/
+/node_modules/
+__pycache__/
+*.pyc
+*.partial
+.DS_Store
+Thumbs.db

@@ -1,0 +1,30 @@
+name: Bug report / 问题反馈 / 不具合報告
+description: Report a reproducible Fluxora problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware and architecture
+      placeholder: OpenWrt 24.10.5, x86/64; Fluxora 1.4.0
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Selected WAN device and package manager
+      placeholder: eth0, opkg; DHCP WAN; OpenClash enabled
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Remove passwords, tokens, IP/MAC addresses and private details.

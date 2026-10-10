@@ -1,0 +1,22 @@
+#!/bin/sh
+mkdir -p /tmp/wan-traffic /etc/wan-traffic
+for file in daily.csv hourly.csv; do
+ [ -f /tmp/wan-traffic/$file ] || cp /etc/wan-traffic/$file /tmp/wan-traffic/$file 2>/dev/null
+done
+touch /tmp/wan-traffic/daily.csv
+# A killed sampler may leave its empty lock directory in RAM.
+rmdir /tmp/wan-traffic/lock 2>/dev/null
+rmdir /tmp/wan-traffic/save-lock 2>/dev/null
+trap '/usr/libexec/wan-traffic-api flush >/dev/null; exit 0' TERM INT
+last_save=0
+while :; do
+ /usr/libexec/wan-traffic-api sample
+ now=$(date +%s)
+ interval=$(uci -q get wan_traffic.main.save_interval)
+ case "$interval" in 60|300|600|1800) ;; *) interval=60;; esac
+ if [ "$((now-last_save))" -ge "$interval" ]; then
+  /usr/libexec/wan-traffic-api flush >/dev/null
+  last_save=$now
+ fi
+ sleep 5 & wait $!
+done

@@ -1,0 +1,137 @@
+#!/bin/sh
+# Fixed operations only. Never evaluate arguments or configuration as shell code.
+R=/tmp/wan-traffic
+P=/etc/wan-traffic
+mkdir -p "$R" "$P"
+merge_hours() {
+ touch "$R/current.csv" "$R/hourly.csv"
+ local cutoff=$(($(date +%s)-90*86400))
+ awk -F, -v cutoff="$cutoff" '
+ FILENAME==ARGV[1] {current=$0;epoch=$1;next}
+ $1>=cutoff && $1!=epoch {print}
+ END {if(current!="" && epoch>=cutoff)print current}' "$R/current.csv" "$R/hourly.csv" > "$R/hourly.merged" && mv "$R/hourly.merged" "$R/hourly.csv"
+}
+print_live() {
+ printf '{"date":"%s","time":"%s","live":' "$(date +%F)" "$(date +%T)"; cat "$R/live.json" 2>/dev/null || printf '{}'
+}
+print_rates() {
+ printf ',"rates":['
+ awk -F, 'NF==3 {printf "%s{\"timestamp\":%.0f,\"rx\":%.0f,\"tx\":%.0f}",sep,$1,$2,$3;sep=","}' "$R/rates.csv" 2>/dev/null
+ printf ']'
+}
+print_hour() {
+ awk -F, 'NF==11 {printf "%s{\"epoch\":%.0f,\"hour\":\"%s\",\"rx\":%.0f,\"tx\":%.0f,\"seconds\":%.0f,\"peak_rx\":%.0f,\"peak_tx\":%.0f,\"rx_packets\":%.0f,\"tx_packets\":%.0f,\"errors\":%.0f,\"drops\":%.0f}",sep,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11;sep=","}' "$1" 2>/dev/null
+}
+case "$1" in
+flush)
+ mkdir "$R/save-lock" 2>/dev/null || exit 0
+ locked=0
+ for retry in 1 2 3; do
+  if mkdir "$R/lock" 2>/dev/null; then locked=1; break; fi
+  sleep 1
+ done
+ [ "$locked" = 1 ] || { rmdir "$R/save-lock"; exit 1; }
+ trap 'rmdir "$R/lock" "$R/save-lock"' EXIT
+ merge_hours
+ for file in daily.csv hourly.csv; do
+  [ -f "$R/$file" ] && { cp "$R/$file" "$P/$file.new" && mv "$P/$file.new" "$P/$file"; }
+ done
+ echo '{"ok":true}';;
+sample)
+ mkdir "$R/lock" 2>/dev/null || exit 0
+ trap 'rmdir "$R/lock"' EXIT
+ dev=$(uci -q get wan_traffic.main.device)
+ if [ -z "$dev" ]; then
+  iface=$(uci -q get wan_traffic.main.interface); [ -n "$iface" ] || iface=wan
+  case "$iface" in *[!a-zA-Z0-9_-]*) exit 1;; esac
+  dev=$(ubus call "network.interface.$iface" status 2>/dev/null | jsonfilter -e '@.l3_device')
+ fi
+ case "$dev" in ''|*[!a-zA-Z0-9_.:-]*) rm -f "$R/baseline" "$R/live.json"; exit 0;; esac
+ # One selected device only: never add LAN, TUN or proxy counters to WAN.
+ case "$dev" in lo|br-*|tun*|utun*|tap*|docker*|veth*|clash*|mihomo*)
+  if [ "$(uci -q get wan_traffic.main.allow_virtual)" != 1 ]; then
+   rm -f "$R/baseline"
+   printf '{"device":"%s","blocked":true}' "$dev" > "$R/live.new"
+   mv "$R/live.new" "$R/live.json"
+   exit 0
+  fi;;
+ esac
+ S=/sys/class/net/$dev/statistics
+ [ -r "$S/rx_bytes" ] || { rm -f "$R/baseline" "$R/live.json"; exit 0; }
+ read -r rx < "$S/rx_bytes" || exit 0
+ read -r tx < "$S/tx_bytes" || exit 0
+ stamp=$(date '+%s %F %FT%H'); set -- $stamp; now=$1; day=$2; hour=$3
+ read -r uptime rest < /proc/uptime; uptime=${uptime%%.*}
+ read -r rp 2>/dev/null < "$S/rx_packets" || rp=0
+ read -r tp 2>/dev/null < "$S/tx_packets" || tp=0
+ read -r re 2>/dev/null < "$S/rx_errors" || re=0
+ read -r te 2>/dev/null < "$S/tx_errors" || te=0
+ read -r rd 2>/dev/null < "$S/rx_dropped" || rd=0
+ read -r td 2>/dev/null < "$S/tx_dropped" || td=0
+ # Reject unsynchronised clock. Baseline survives daemon restarts within this boot.
+ [ "$now" -ge 1704067200 ] || exit 0
+ read -r boot < /proc/sys/kernel/random/boot_id
+ old=$(cat "$R/baseline" 2>/dev/null)
+ set -- $old
+ dr=0; dt=0; elapsed=5; covered=0
+ dp=0; dq=0; de=0; dd=0
+ if [ "$1" = "$boot:$dev:v2" ]; then
+  elapsed=$((uptime-${4:-$uptime})); [ "$elapsed" -gt 0 ] || elapsed=5
+  [ "$elapsed" -le 15 ] && covered=$elapsed
+  deltas=$(awk -v rx="$rx" -v prx="$2" -v tx="$tx" -v ptx="$3" -v rp="$rp" -v prp="${5:-0}" -v tp="$tp" -v ptp="${6:-0}" -v re="$re" -v pre="${7:-0}" -v te="$te" -v pte="${8:-0}" -v rd="$rd" -v prd="${9:-0}" -v td="$td" -v ptd="${10:-0}" '
+   function delta(n,p){return n>=p?n-p:n}
+   BEGIN {printf "%.0f %.0f %.0f %.0f %.0f %.0f",delta(rx,prx),delta(tx,ptx),delta(rp,prp),delta(tp,ptp),delta(re,pre)+delta(te,pte),delta(rd,prd)+delta(td,ptd)}')
+  set -- $deltas; dr=$1; dt=$2; dp=$3; dq=$4; de=$5; dd=$6
+ fi
+ printf '%s %s %s %s %s %s %s %s %s %s\n' "$boot:$dev:v2" "$rx" "$tx" "$uptime" "$rp" "$tp" "$re" "$te" "$rd" "$td" > "$R/baseline"
+ touch "$R/daily.csv"
+ awk -F, -v d="$day" -v r="$dr" -v t="$dt" -v today="$R/day.new" 'BEGIN{OFS=","} $1==d {$2+=r;$3+=t;found=1;printf "%s,%.0f,%.0f\n",d,$2,$3 > today} {printf "%s,%.0f,%.0f\n",$1,$2,$3} END{if(!found){printf "%s,%.0f,%.0f\n",d,r,t;printf "%s,%.0f,%.0f\n",d,r,t > today}}' "$R/daily.csv" > "$R/daily.new" && mv "$R/daily.new" "$R/daily.csv"
+ mv "$R/day.new" "$R/day.csv"
+ awk -v r="$dr" -v t="$dt" -v e="$elapsed" -v n="$now" -v d="$dev" 'BEGIN{printf "{\"device\":\"%s\",\"timestamp\":%s,\"rx_rate\":%.0f,\"tx_rate\":%.0f}",d,n,r/e,t/e}' > "$R/live.new"
+ mv "$R/live.new" "$R/live.json"
+ epoch=$((now/3600*3600))
+ touch "$R/hourly.csv" "$R/rates.csv"
+ current_epoch=0; [ -f "$R/current.csv" ] && IFS=, read -r current_epoch rest < "$R/current.csv"
+ if [ "$current_epoch" != "$epoch" ]; then
+  # Full history is merged on rollover/save, not on every sample.
+  merge_hours
+  awk -F, -v n="$epoch" '$1==n {print;exit}' "$R/hourly.csv" > "$R/current.new"
+  mv "$R/current.new" "$R/current.csv"
+ fi
+ awk -F, -v h="$hour" -v n="$epoch" -v r="$dr" -v t="$dt" -v e="$elapsed" -v c="$covered" -v p="$dp" -v q="$dq" -v x="$de" -v z="$dd" '
+ BEGIN{OFS=","}
+ $1==n {$3+=r;$4+=t;$5+=c;if(r/e>$6)$6=r/e;if(t/e>$7)$7=t/e;$8+=p;$9+=q;$10+=x;$11+=z;found=1}
+ {printf "%.0f,%s,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f\n",$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11}
+ END{if(!found)printf "%.0f,%s,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f,%.0f\n",n,h,r,t,c,r/e,t/e,p,q,x,z}' "$R/current.csv" > "$R/current.new" && mv "$R/current.new" "$R/current.csv"
+ awk -v n="$now" -v r="$dr" -v t="$dt" -v e="$elapsed" 'BEGIN{printf "%s,%.0f,%.0f\n",n,r/e,t/e}' >> "$R/rates.csv"
+ tail -n 180 "$R/rates.csv" > "$R/rates.new" && mv "$R/rates.new" "$R/rates.csv";;
+status)
+ print_live
+ printf ',"days":['
+ file="$R/daily.csv"; [ -f "$file" ] || file="$P/daily.csv"
+ awk -F, 'NF==3 {printf "%s{\"date\":\"%s\",\"rx\":%.0f,\"tx\":%.0f}",sep,$1,$2,$3;sep=","}' "$file" 2>/dev/null
+ printf '],"hours":['
+ file="$R/hourly.csv"; [ -f "$file" ] || file="$P/hourly.csv"
+ touch "$R/current.csv"
+ awk -F, -v cutoff="$(($(date +%s)-8*86400))" '
+ FILENAME==ARGV[1] {current=$0;epoch=$1;next}
+ $1>=cutoff && $1!=epoch {print}
+ END {if(current!="" && epoch>=cutoff) print current}' "$R/current.csv" "$file" 2>/dev/null | print_hour -
+ printf ']'; print_rates
+ printf ',"devices":['
+ sep=''
+ for path in /sys/class/net/*; do
+  name=${path##*/}
+  case "$name" in *[!a-zA-Z0-9_.:-]*) continue;; esac
+  printf '%s"%s"' "$sep" "$name"; sep=','
+ done
+ printf ']}\n';;
+live)
+ print_live
+ printf ',"today":'
+ today=$(awk -F, -v d="$(date +%F)" '$1==d {printf "{\"date\":\"%s\",\"rx\":%.0f,\"tx\":%.0f}",$1,$2,$3}' "$R/day.csv" 2>/dev/null)
+ [ -n "$today" ] && printf '%s' "$today" || printf 'null'
+ printf ',"current_hour":['; print_hour "$R/current.csv"; printf ']'
+ print_rates; printf '}\n';;
+*) exit 1;;
+esac

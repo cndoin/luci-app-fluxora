@@ -1,0 +1,8 @@
+{
+  "name": "fluxora-development",
+  "private": true,
+  "version": "1.4.0",
+  "description": "Development-only browser checks; not installed on the router",
+  "scripts": { "test": "node test_ui.cjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}
