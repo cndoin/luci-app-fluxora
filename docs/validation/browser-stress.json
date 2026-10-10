@@ -1,0 +1,10 @@
+{
+  "sameSvg": true,
+  "sameCard": true,
+  "nodesBefore": 1182,
+  "nodesAfter": 1182,
+  "maxActive": 1,
+  "live": 250,
+  "heapBefore": 2959868,
+  "heapAfter": 3208580
+}
