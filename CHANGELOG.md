@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0 — 2026-10-10
+
+- Add a default-off standalone LAN dashboard with configurable port/interface and a LuCI open button.
+- Share the existing collector, metrics and translations; add fullscreen and remembered theme/language.
+- Bind only a private LAN IPv4 address; expose a read-only CGI allowlist, reject foreign Host/Origin and writes, limit concurrent requests.
+- Package the listener and dashboard in universal IPK/APK; verify the real OpenWrt uhttpd and standalone browser bundle.
+
 ## 1.4.0 — 2026-10-10
 
 - Introduce **Fluxora** branding, MIT licensing and a public source repository.

@@ -17,7 +17,15 @@
 
 ![English dashboard overview](docs/assets/overview.png)
 
-Screenshots render the actual dashboard code with **simulated data**. Fluxora runs inside LuCI; no separate website or GitHub Pages is deployed.
+Screenshots render the actual dashboard code with **simulated data**. Fluxora runs inside LuCI, with an optional local standalone dashboard. No hosted website or GitHub Pages is deployed.
+
+## Standalone LAN dashboard
+
+Enable **Standalone LAN dashboard** in LuCI → Services → Fluxora → Manual settings, choose a port (default **8810**) and LAN interface (default `lan`), then **Save & Apply** and reload LuCI. Click **Open standalone dashboard**, or visit `http://<router-LAN-IP>:8810/`.
+
+The optional page has its own layout, language selector, remembered light/dark theme and fullscreen control. It shares the collector and history with LuCI; disabling the switch stops the extra listener. It is **read-only and has no login**: devices able to reach that LAN address can see aggregate traffic. Configuration remains in authenticated LuCI. Use on a trusted LAN; do not forward this port. Only the selected interface’s private IPv4 address is bound; no WAN firewall allowance is created. Port collisions prevent the listener from starting: choose another unused port. Router hostnames and IPv6 URLs are not supported by this listener. The “Router settings” shortcut assumes LuCI HTTP port 80; use your usual LuCI URL for custom ports/HTTPS.
+
+![Standalone dashboard — simulated data](docs/assets/standalone.png)
 
 ## See the whole picture
 
@@ -48,18 +56,18 @@ Choose by **package manager**, not CPU. The runtime is Shell and JavaScript: the
 
 | Firmware | Package |
 | --- | --- |
-| OpenWrt 23.05 / 24.10; opkg-based iStoreOS 24.10 | `luci-app-wan-traffic_1.4.0-1_all.ipk` |
-| OpenWrt 25.12 with apk | `luci-app-wan-traffic-1.4.0-r1.apk` |
+| OpenWrt 23.05 / 24.10; opkg-based iStoreOS 24.10 | `luci-app-wan-traffic_1.5.0-1_all.ipk` |
+| OpenWrt 25.12 with apk | `luci-app-wan-traffic-1.5.0-r1.apk` |
 | Custom builds / snapshots | Check your package manager and [compatibility notes](docs/COMPATIBILITY.md) |
 
 Upload the selected package to `/tmp`:
 
 ```sh
 # opkg firmware
-opkg install /tmp/luci-app-wan-traffic_1.4.0-1_all.ipk
+opkg install /tmp/luci-app-wan-traffic_1.5.0-1_all.ipk
 
 # apk firmware — community package, not signed by OpenWrt's keys
-apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.4.0-r1.apk
+apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.5.0-r1.apk
 ```
 
 If dependencies are missing, run `opkg update` or `apk update` and retry. Check downloads against the release's `SHA256SUMS`. Do not rename IPK to APK.

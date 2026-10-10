@@ -17,7 +17,15 @@
 
 ![日本語のダッシュボード](docs/assets/overview-ja.png)
 
-実際のコードを**サンプルデータ**で表示しています。LuCI 内で動作し、別のウェブサイトや GitHub Pages は公開しません。英語・簡体字中国語・日本語に対応します。
+実際のコードを**サンプルデータ**で表示しています。LuCI 内と任意のLAN専用ダッシュボードで動作し、公開ウェブサイトや GitHub Pages は配信しません。英語・簡体字中国語・日本語に対応します。
+
+## LAN専用ダッシュボード
+
+LuCI の **サービス → Fluxora → 設定** で独立ダッシュボードを有効にし、ポート（初期値 **8810**）とLANインターフェース（初期値 `lan`）を指定します。**保存・適用後にLuCIを再読込**し、開くボタンを押すか、`http://ルーターのLANアドレス:8810/` にアクセスしてください。
+
+LuCIの枠を外した専用画面で、言語切替、保存される明暗テーマ、全画面表示に対応します。既存の収集処理と履歴を共有し、無効にすると追加リスナーも停止します。**ログイン不要の読み取り専用**です。LANアドレスに接続できる端末は集計データを閲覧できます。設定変更にはLuCIへのログインが必要です。信頼できるLANで使用し、ポート転送をしないでください。選択したインターフェースのプライベートIPv4のみで待ち受け、WANの許可ルールは追加しません。ポート競合時は未使用ポートを選んでください。ホスト名とIPv6 URLには対応しません。「ルーター設定」リンクはHTTPの80番を前提とします。独自ポート・HTTPSでは通常の管理URLを使用してください。
+
+![独立ダッシュボード：サンプルデータ](docs/assets/standalone.png)
 
 ## 主な機能
 
@@ -48,18 +56,18 @@ CPU ではなく**パッケージマネージャー**で選びます。Shell と
 
 | ファームウェア | ファイル |
 | --- | --- |
-| OpenWrt 23.05 / 24.10、opkg の iStoreOS 24.10 | `luci-app-wan-traffic_1.4.0-1_all.ipk` |
-| apk の OpenWrt 25.12 | `luci-app-wan-traffic-1.4.0-r1.apk` |
+| OpenWrt 23.05 / 24.10、opkg の iStoreOS 24.10 | `luci-app-wan-traffic_1.5.0-1_all.ipk` |
+| apk の OpenWrt 25.12 | `luci-app-wan-traffic-1.5.0-r1.apk` |
 | 独自ビルド / Snapshot | [互換性](docs/COMPATIBILITY.md)とマネージャーを確認 |
 
 ファイルを `/tmp` にアップロードして実行します。
 
 ```sh
 # opkg
-opkg install /tmp/luci-app-wan-traffic_1.4.0-1_all.ipk
+opkg install /tmp/luci-app-wan-traffic_1.5.0-1_all.ipk
 
 # apk — コミュニティ配布は OpenWrt の公式鍵で署名されていません
-apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.4.0-r1.apk
+apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.5.0-r1.apk
 ```
 
 依存関係が不足する場合は `opkg update` または `apk update` 後に再試行してください。Release の `SHA256SUMS` で照合します。IPK の拡張子を APK に変えても利用できません。

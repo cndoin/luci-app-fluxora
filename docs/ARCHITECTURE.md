@@ -31,3 +31,9 @@ Readonly components reconcile DOM nodes; interactive history/calendar controls r
 `luci-app-wan-traffic` remains the package name for upgrade compatibility, with Fluxora as the public brand. IPK metadata uses `all`; APK uses `noarch`. ARM / x86 convenience ZIP files contain the same universal package bytes. The OpenWrt Makefile uses `PKGARCH:=all`. APK files are generated with apk-tools v3, not by renaming IPKs.
 
 References: [Linux statistics](https://docs.kernel.org/networking/statistics.html), [LuCI](https://github.com/openwrt/luci), [OpenWrt packaging](https://github.com/openwrt/openwrt/blob/openwrt-25.12/include/package-pack.mk).
+
+## Optional standalone dashboard (1.5.0)
+
+A second procd-managed uhttpd instance starts only when `web_enabled=1`. `wan-traffic-web address` validates the port and resolves the configured LAN interface to a private IPv4 address. Network interface events and UCI reload triggers refresh the listener. It serves only `/www/wan-traffic`, disables directory listings and out-of-root symlinks, enables the RFC1918 filter, limits CGI concurrency to 2/connections to 16 and script timeouts to 15 seconds. No ubus HTTP handler or LuCI session is exposed. The CGI accepts only GET with exact numeric Host and same Origin (if supplied), and a fixed `config/status/live` allowlist. Config is a presentation-only whitelist. No CORS or configuration writes. LAN viewers do not authenticate; do not forward the port.
+
+`generate_standalone.py` wraps the same core, translation and view source into a static bundle without eval. A small adapter supplies DOM creation, read-only fetch and serialized polling instead of LuCI RPC. Assets are local. The standalone server does not run another sampler.

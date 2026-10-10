@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-wan-traffic
-PKG_VERSION:=1.4.0
+PKG_VERSION:=1.5.0
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=LICENSE
@@ -16,7 +16,7 @@ define Package/luci-app-wan-traffic
   SUBMENU:=3. Applications
   TITLE:=Fluxora - persistent WAN traffic observatory
   URL:=https://github.com/cndoin/luci-app-fluxora
-  DEPENDS:=+luci-base +rpcd +rpcd-mod-file +uci +ubus +jsonfilter
+  DEPENDS:=+luci-base +rpcd +rpcd-mod-file +uci +ubus +jsonfilter +uhttpd
 endef
 
 define Package/luci-app-wan-traffic/description
@@ -25,6 +25,7 @@ define Package/luci-app-wan-traffic/description
 endef
 
 define Build/Compile
+	python3 ./generate_standalone.py $(PKG_BUILD_DIR)/standalone
 endef
 
 define Package/luci-app-wan-traffic/conffiles
@@ -34,6 +35,8 @@ endef
 define Package/luci-app-wan-traffic/install
 	$(CP) ./root/* $(1)/
 	chmod 0755 $(1)/etc/init.d/wan-traffic $(1)/usr/libexec/wan-traffic-*
+	chmod 0755 $(1)/www/wan-traffic/cgi-bin/data
+	$(CP) $(PKG_BUILD_DIR)/standalone/* $(1)/www/wan-traffic/
 	$(INSTALL_DATA) ./LICENSE $(1)/usr/share/doc/luci-app-wan-traffic/LICENSE
 endef
 

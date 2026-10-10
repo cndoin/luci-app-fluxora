@@ -46,7 +46,7 @@ cp "$SOURCE/dist/$PACKAGE" "$T/root/tmp/plugin.$EXT"
 if [ "$MANAGER" = opkg ]; then
  printf 'dest root /\nlists_dir ext /var/opkg-lists\narch all 1\narch x86_64 10\narch aarch64_generic 10\narch arm_cortex-a15_neon-vfpv4 10\n' > "$T/target/etc/opkg.conf"
  # Dependency stubs verify the package envelope, not LuCI integration.
- for pkg in libc luci-base rpcd rpcd-mod-file uci ubus jsonfilter; do
+ for pkg in libc luci-base rpcd rpcd-mod-file uci ubus jsonfilter uhttpd; do
   printf 'Package: %s\nVersion: 1.0\nArchitecture: all\nStatus: install ok installed\n\n' "$pkg" >> "$T/target/usr/lib/opkg/status"
   touch "$T/target/usr/lib/opkg/info/$pkg.list"
  done
@@ -62,16 +62,19 @@ if [ "$MANAGER" = opkg ]; then
  fi
 else
  mkdir -p "$T/empty" "$T/root/tmp/deps"
- for pkg in luci-base rpcd rpcd-mod-file uci ubus jsonfilter; do
+ for pkg in luci-base rpcd rpcd-mod-file uci ubus jsonfilter uhttpd; do
   apk mkpkg --info "name:$pkg" --info version:1.0-r1 --info arch:noarch --files "$T/empty" --output "$T/root/tmp/deps/$pkg.apk"
  done
  guest /usr/bin/apk --version
- guest /usr/bin/apk --root /target --initdb --no-network --no-scripts --allow-untrusted add /tmp/deps/luci-base.apk /tmp/deps/rpcd.apk /tmp/deps/rpcd-mod-file.apk /tmp/deps/uci.apk /tmp/deps/ubus.apk /tmp/deps/jsonfilter.apk /tmp/plugin.apk
+ guest /usr/bin/apk --root /target --initdb --no-network --no-scripts --allow-untrusted add /tmp/deps/luci-base.apk /tmp/deps/rpcd.apk /tmp/deps/rpcd-mod-file.apk /tmp/deps/uci.apk /tmp/deps/ubus.apk /tmp/deps/jsonfilter.apk /tmp/deps/uhttpd.apk /tmp/plugin.apk
  guest /usr/bin/apk --root /target info luci-app-wan-traffic
  DEST="$T/root/target"
 fi
 test -x "$DEST/usr/libexec/wan-traffic-api"
 test -x "$DEST/etc/init.d/wan-traffic"
+test -x "$DEST/usr/libexec/wan-traffic-web"
+test -x "$DEST/www/wan-traffic/cgi-bin/data"
+test -f "$DEST/www/wan-traffic/dashboard.js"
 test -f "$DEST/www/luci-static/resources/view/wan-traffic/dashboard.js"
 test -f "$DEST/usr/share/doc/luci-app-wan-traffic/LICENSE"
 cp "$DEST/usr/libexec/wan-traffic-api" "$T/root/tmp/api"

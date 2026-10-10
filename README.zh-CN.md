@@ -17,7 +17,15 @@
 
 ![看板：英文界面示例](docs/assets/overview.png)
 
-图片由实际代码和**模拟数据**生成。插件在 LuCI 内运行，不部署独立网站或 GitHub Pages；界面也提供中文、英文、日文。
+图片由实际代码和**模拟数据**生成。插件在 LuCI 内运行，也提供可选的局域网独立面板，不部署公网网站或 GitHub Pages；界面也提供中文、英文、日文。
+
+## 局域网独立面板
+
+在 **服务 → Fluxora 流光 → 手动配置** 打开“启用局域网独立面板”，端口默认 **8810**，LAN 逻辑接口默认 `lan`。**保存并应用后刷新 LuCI 页面**，点击“打开独立面板”；也可以访问 `http://路由器LAN地址:8810/`。
+
+独立页面去掉 LuCI 外框，支持语言切换、记忆明暗主题和全屏展示。共用原有采集器和历史数据，关闭开关即停止额外端口监听。此面板**只读且免登录**：能够访问该 LAN 地址的设备都能查看汇总流量；修改配置仍需登录 LuCI。请用于可信局域网，不要转发此端口。只绑定选定接口的私有 IPv4 地址，不添加 WAN 防火墙放行规则。端口被占用时请选择其他空闲端口。目前请使用 IPv4 地址访问，不支持主机名或 IPv6 URL。“路由器配置”快捷链接默认 LuCI 使用 HTTP 80 端口；自定义 LuCI 端口或 HTTPS 请使用原来的管理地址。
+
+![独立面板：模拟数据](docs/assets/standalone.png)
 
 ## 功能一览
 
@@ -48,18 +56,18 @@
 
 | 系统 | 文件 |
 | --- | --- |
-| OpenWrt 23.05 / 24.10、使用 opkg 的 iStoreOS 24.10 | `luci-app-wan-traffic_1.4.0-1_all.ipk` |
-| 使用 apk 的 OpenWrt 25.12 | `luci-app-wan-traffic-1.4.0-r1.apk` |
+| OpenWrt 23.05 / 24.10、使用 opkg 的 iStoreOS 24.10 | `luci-app-wan-traffic_1.5.0-1_all.ipk` |
+| 使用 apk 的 OpenWrt 25.12 | `luci-app-wan-traffic-1.5.0-r1.apk` |
 | 其他分支 / 自编译 / Snapshot | 核对包管理器并阅读[兼容性说明](docs/COMPATIBILITY.md) |
 
 上传到 `/tmp`，执行：
 
 ```sh
 # opkg 系统
-opkg install /tmp/luci-app-wan-traffic_1.4.0-1_all.ipk
+opkg install /tmp/luci-app-wan-traffic_1.5.0-1_all.ipk
 
 # apk 系统：社区包未使用 OpenWrt 官方密钥签名
-apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.4.0-r1.apk
+apk add --allow-untrusted /tmp/luci-app-wan-traffic-1.5.0-r1.apk
 ```
 
 缺少依赖时先执行 `opkg update` 或 `apk update`，再安装。用 Release 的 `SHA256SUMS` 核对文件；不能通过改后缀把 IPK 变成 APK。

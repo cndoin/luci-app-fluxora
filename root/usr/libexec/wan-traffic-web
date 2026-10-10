@@ -1,0 +1,14 @@
+#!/bin/sh
+# Resolve only a configured private LAN IPv4 address; never bind wildcard/WAN.
+[ "$1" = address ] || exit 1
+[ "$(uci -q get wan_traffic.main.web_enabled)" = 1 ] || { echo '{"enabled":false}'; exit 0; }
+iface=$(uci -q get wan_traffic.main.web_interface); iface=${iface:-lan}
+port=$(uci -q get wan_traffic.main.web_port); port=${port:-8810}
+case "$iface" in ''|*[!a-zA-Z0-9_-]*) exit 1;; esac
+case "$iface" in wan|wan6) exit 1;; esac
+[ "$iface" != "$(uci -q get wan_traffic.main.interface)" ] || exit 1
+case "$port" in ''|*[!0-9]*|0*) exit 1;; esac
+[ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || exit 1
+addr=$(ubus call "network.interface.$iface" status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address')
+echo "$addr" | awk -F. 'NF!=4{exit 1} {for(i=1;i<=4;i++)if($i!~/^[0-9]+$/ || $i>255)exit 1; if(!($1==10 || ($1==172 && $2>=16 && $2<=31) || ($1==192 && $2==168)))exit 1}' || exit 1
+printf '{"enabled":true,"address":"%s","port":%s}\n' "$addr" "$port"

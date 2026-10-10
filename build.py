@@ -1,5 +1,6 @@
 import io, tarfile, pathlib, gzip, hashlib, argparse, os, tempfile, shlex, zipfile
 from linux_support import linux_path, run_linux
+from generate_standalone import bundle
 BASE = pathlib.Path(__file__).resolve().parent
 (BASE/'test-cache').mkdir(exist_ok=True)
 VERSION=(BASE/'VERSION').read_text().strip()
@@ -25,8 +26,11 @@ payload=[]
 for p in sorted((BASE/'root').rglob('*')):
     if p.is_file():
         name=p.relative_to(BASE/'root').as_posix()
-        executable=name.startswith(('etc/init.d/', 'usr/libexec/', 'etc/uci-defaults/'))
+        executable=name.startswith(('etc/init.d/', 'usr/libexec/', 'etc/uci-defaults/', 'www/wan-traffic/cgi-bin/'))
         payload.append((name,p.read_bytes(),0o755 if executable else 0o644))
+resources=BASE/'root/www/luci-static/resources'
+payload.append(('www/wan-traffic/dashboard.js',bundle(),0o644))
+payload.append(('www/wan-traffic/dashboard.css',(resources/'wan-traffic/dashboard.css').read_bytes(),0o644))
 payload.append(('usr/share/doc/luci-app-wan-traffic/LICENSE',(BASE/'LICENSE').read_bytes(),0o644))
 control=f'''Package: luci-app-wan-traffic
 Version: {VERSION}-1
@@ -34,7 +38,7 @@ Architecture: all
 Maintainer: cndoin
 License: MIT
 Source: https://github.com/cndoin/luci-app-fluxora
-Depends: libc, luci-base, rpcd, rpcd-mod-file, uci, ubus, jsonfilter
+Depends: libc, luci-base, rpcd, rpcd-mod-file, uci, ubus, jsonfilter, uhttpd
 Section: luci
 Priority: optional
 Description: Fluxora - persistent WAN traffic observatory for LuCI
@@ -79,8 +83,10 @@ if args.format in ('apk','all'):
         apk=out/f'luci-app-wan-traffic-{VERSION}-r1.apk'
         q=shlex.quote
         cmd='set -eu\n'
-        if os.name=='nt':cmd+='chmod 755 '+q(linux_path(stage/'etc/init.d/wan-traffic'))+' '+q(linux_path(stage/'usr/libexec/wan-traffic-api'))+' '+q(linux_path(stage/'usr/libexec/wan-traffic-worker'))+'\n'
-        cmd+='apk mkpkg --info name:luci-app-wan-traffic --info version:'+VERSION+'-r1 --info arch:noarch --info license:MIT --info '+q('description:Fluxora - persistent WAN traffic observatory for LuCI')+' --info '+q('url:https://github.com/cndoin/luci-app-fluxora')+' --info maintainer:cndoin --info '+q('depends:luci-base rpcd rpcd-mod-file uci ubus jsonfilter')+' --files '+q(linux_path(stage))+' --output '+q(linux_path(apk))
+        if os.name=='nt':
+            for name,_,mode in payload:
+                if mode==0o755:cmd+='chmod 755 '+q(linux_path(stage/name))+'\n'
+        cmd+='apk mkpkg --info name:luci-app-wan-traffic --info version:'+VERSION+'-r1 --info arch:noarch --info license:MIT --info '+q('description:Fluxora - persistent WAN traffic observatory for LuCI')+' --info '+q('url:https://github.com/cndoin/luci-app-fluxora')+' --info maintainer:cndoin --info '+q('depends:luci-base rpcd rpcd-mod-file uci ubus jsonfilter uhttpd')+' --files '+q(linux_path(stage))+' --output '+q(linux_path(apk))
         for name in ['post-install','post-upgrade','pre-deinstall']:cmd+=' --script '+q(name+':'+linux_path(scripts/name))
         result=run_linux(cmd,BASE)
         if result.returncode:raise RuntimeError(result.stdout+result.stderr)

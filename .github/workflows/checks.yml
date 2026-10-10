@@ -21,7 +21,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: python3 build.py && python3 test_backend.py
-      - run: npm ci && npx playwright install --with-deps chromium && npm test
+      - run: npm ci && npx playwright install --with-deps chromium && npm test && node test_standalone.cjs
       - name: Build APK and convenience bundles with apk-tools v3
         run: docker run --rm -v "$PWD:/src" -w /src python:3.12-alpine3.23 python build.py --format all
       - uses: actions/upload-artifact@v4
@@ -63,6 +63,9 @@ jobs:
       - name: Check real OpenWrt apk
         if: matrix.target == '25.12-x86'
         run: docker run --rm -v "$PWD:/src" -w /src python:3.12-alpine3.23 sh -c 'apk add --no-cache curl && python test_compatibility.py --target 25.12-x86'
+      - name: Check standalone CGI with real OpenWrt uhttpd
+        if: matrix.target == '24.10-x86'
+        run: sudo python3 test_web.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

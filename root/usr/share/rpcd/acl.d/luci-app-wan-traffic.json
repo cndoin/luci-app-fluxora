@@ -1,1 +1,1 @@
-{"luci-app-wan-traffic":{"description":"WAN traffic dashboard","read":{"uci":["wan_traffic"],"ubus":{"file":["exec"]},"file":{"/usr/libexec/wan-traffic-api status":["exec"],"/usr/libexec/wan-traffic-api live":["exec"]}},"write":{"uci":["wan_traffic"]}}}
+{"luci-app-wan-traffic": {"description": "WAN traffic dashboard", "read": {"uci": ["wan_traffic"], "ubus": {"file": ["exec"]}, "file": {"/usr/libexec/wan-traffic-api status": ["exec"], "/usr/libexec/wan-traffic-api live": ["exec"], "/usr/libexec/wan-traffic-web address": ["exec"]}}, "write": {"uci": ["wan_traffic"]}}}

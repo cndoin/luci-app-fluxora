@@ -90,7 +90,7 @@ function card(label, data, badge, detail, series) {
  ]);
 }
 return view.extend({
- load:function(){return Promise.all([uci.load('wan_traffic'),uci.load('luci')]).then(function(){return [null,{devices:[]}];});},
+ load:function(){return Promise.all([uci.load('wan_traffic'),uci.load('luci')]).then(function(){if(uci.get('wan_traffic','main','web_enabled')!=='1')return null;return fs.exec('/usr/libexec/wan-traffic-web',['address']).then(function(r){return JSON.parse(r.stdout);}).catch(function(){return null;});}).then(function(web){return [null,{devices:[]},web];});},
  render:function(loaded){
   language=i18n.language(uci.get('wan_traffic','main','language'),uci.get('luci','main','lang'),navigator.language);
   var m=new form.Map('wan_traffic',tr('手动配置'),tr('配置永久保存。固定设备优先于逻辑接口，留空则从逻辑接口自动识别；配置应用后下一次采样生效。'));
@@ -115,6 +115,12 @@ return view.extend({
   o.description=tr('只影响页面读取频率；后台每 5 秒采样，页面历史数据约每分钟同步一次。页面隐藏时暂停请求。');
   o=s.option(form.ListValue,'motion',tr('界面动画'));o.value('soft',tr('轻柔动画'));o.value('off',tr('关闭动画'));o.default='soft';
   o=s.option(form.ListValue,'language',tr('界面语言'));o.value('auto',tr('跟随 LuCI / 浏览器'));o.value('zh-CN','中文');o.value('en','English');o.value('ja','日本語');o.default='auto';
+  o=s.option(form.Flag,'web_enabled',tr('启用局域网独立面板'));o.default='0';o.rmempty=false;
+  o.description=tr('默认关闭。启用后局域网设备可免登录查看流量，只读展示；配置仍在 LuCI 修改。');
+  o=s.option(form.Value,'web_port',tr('独立面板端口'));o.default='8810';o.datatype='range(1024,65535)';o.rmempty=false;o.depends('web_enabled','1');
+  o=s.option(form.Value,'web_interface',tr('独立面板 LAN 接口'));o.default='lan';o.datatype='uciname';o.rmempty=false;o.depends('web_enabled','1');
+  o.validate=function(section,value){return value!=='wan' && value!=='wan6' && value!==uci.get('wan_traffic','main','interface') || tr('请选择 LAN 逻辑接口');};
+  o.description=tr('只绑定此逻辑接口的私有 IPv4 地址，不创建外网放行规则。保存应用后刷新页面，使用打开按钮。');
   var root=E('div',{'class':'wt-root'}), status=E('span',{'class':'wt-status'},tr('读取中'));
   var cards=E('div',{'class':'wt-cards'}), details=E('div',{'class':'wt-details'});
   var chart=E('div',{'class':'wt-chart-body'}), subtitle=E('p',{'class':'wt-muted'});
@@ -238,9 +244,14 @@ return view.extend({
   }).catch(function(err){if(!disposed){status.textContent=tr('读取失败：')+err.message+tr(' · 等待重试');status.classList.remove('wt-online');}}).finally(function(){busy=false;clearTimeout(pendingTimer);pendingTimer=null;if(!disposed){root.classList.remove('wt-refreshing');refreshButton.disabled=false;refreshButton.textContent=tr('立即刷新');}});
   }
   return m.render().then(function(formNode){
+   var headerConfig=toggle;
+   if(loaded[2] && loaded[2].enabled && /^\d+\.\d+\.\d+\.\d+$/.test(loaded[2].address)){
+    headerConfig=E('div',{'class':'wt-header-actions'},[E('a',{'class':'wt-button',href:'http://'+loaded[2].address+':'+loaded[2].port+'/',target:'_blank',rel:'noopener noreferrer'},tr('打开独立面板')),toggle]);
+   }
+   if(L.standalone)headerConfig=E('a',{'class':'wt-button',href:'http://'+location.hostname+'/cgi-bin/luci/admin/services/wan-traffic',target:'_blank',rel:'noopener noreferrer'},tr('路由器配置'));
    root.appendChild(E('link',{rel:'stylesheet',href:L.resource('wan-traffic/dashboard.css')}));
    var exportButton=E('button',{type:'button','class':'wt-button',click:function(){if(!latest)return;var csv='Date,Download bytes,Upload bytes,Total bytes\n'+latest.days.map(function(r){return [r.date,r.rx,r.tx,r.rx+r.tx].join(',');}).join('\n');var url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));var link=E('a',{href:url,download:'wan-traffic-'+latest.date+'.csv'});link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);}},tr('导出 CSV'));
-   root.appendChild(E('div',{'class':'wt-header'},[E('div',{},[E('small',{},'FLUXORA / WAN OBSERVATORY'),E('h2',{},tr('让每一份流量，都看得清楚。')),E('p',{'class':'wt-muted'},tr('趋势、节奏与预算 · 只看实际经过外网的流量'))]),E('div',{'class':'wt-header-actions'},[status,exportButton,toggle])]));
+   root.appendChild(E('div',{'class':'wt-header'},[E('div',{},[E('small',{},'FLUXORA / WAN OBSERVATORY'),E('h2',{},tr('让每一份流量，都看得清楚。')),E('p',{'class':'wt-muted'},tr('趋势、节奏与预算 · 只看实际经过外网的流量'))]),E('div',{'class':'wt-header-actions'},[status,exportButton,headerConfig])]));
    root.dataset.motion=uci.get('wan_traffic','main','motion')||'soft';
    root.appendChild(E('div',{'class':'wt-toolbar'},[E('nav',{'class':'wt-jump','aria-label':tr('看板导航')},[[tr('总览'),cards],[tr('预算'),budget],[tr('实时速率'),real],[tr('行为画像'),hourly],[tr('历史记录'),records]].map(function(pair){return E('button',{type:'button',click:function(){pair[1].scrollIntoView({behavior:root.dataset.motion==='off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});}},pair[0]);})),E('div',{'class':'wt-refresh-controls'},[refreshMeta,refreshSelect,refreshButton])]));
    [tr('今日流量'),tr('近 7 天流量'),tr('近 30 天流量'),tr('总流量')].forEach(function(label){cards.appendChild(E('div',{'class':'wt-card'},[E('small',{},label),E('strong',{},tr('读取中…'))]));});

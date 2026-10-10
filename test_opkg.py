@@ -28,7 +28,7 @@ mkdir -p "$T/root/tmp" "$T/root/tmp/lock" "$T/root/target/var/lock" "$T/root/tar
 mkdir -p "$T/root/target/etc" "$T/root/target/usr/lib/opkg/info"
 printf 'dest root /\nlists_dir ext /var/opkg-lists\narch all 1\narch x86_64 10\n' > "$T/root/target/etc/opkg.conf"
 # Metadata-only dependency fixtures: test unpacking, not dependency functionality.
-for pkg in libc luci-base rpcd rpcd-mod-file uci ubus jsonfilter; do
+for pkg in libc luci-base rpcd rpcd-mod-file uci ubus jsonfilter uhttpd; do
  printf 'Package: %s\nVersion: 1.0\nArchitecture: all\nStatus: install ok installed\n\n' "$pkg" >> "$T/root/target/usr/lib/opkg/status"
  touch "$T/root/target/usr/lib/opkg/info/$pkg.list"
 done

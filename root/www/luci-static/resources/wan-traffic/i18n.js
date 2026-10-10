@@ -786,6 +786,38 @@ var dictionary = {
  "仅累计选定外网口的 RX / TX，包含 IPv4、IPv6 与路由器自身流量；不叠加 OpenClash / UA3F / TUN 统计。真实代理开销与重传仍计入。历史记录重启保留，突然断电最多丢失一个保存间隔。": {
   "en": "Counts RX / TX on one selected WAN device, including IPv4, IPv6 and router traffic. OpenClash / UA3F / TUN counters are not added. Real overhead and retransmissions count. History survives reboots; sudden power loss may lose up to one save interval.",
   "ja": "選択したWANデバイス1つのRX / TXを集計します。IPv4、IPv6、ルーター自身の通信を含み、OpenClash / UA3F / TUNのカウンターは加算しません。実際のオーバーヘッドと再送は計上します。履歴は再起動後も保持し、突然の電源断では最大1保存間隔分を失う場合があります。"
+ },
+ "启用局域网独立面板": {
+  "en": "Enable standalone LAN dashboard",
+  "ja": "LAN専用ダッシュボードを有効化"
+ },
+ "默认关闭。启用后局域网设备可免登录查看流量，只读展示；配置仍在 LuCI 修改。": {
+  "en": "Disabled by default. LAN devices can view traffic without signing in. Read-only; configure through LuCI.",
+  "ja": "初期状態は無効です。有効にするとLAN内でログインせずに閲覧できます。読み取り専用で、設定はLuCIで行います。"
+ },
+ "独立面板端口": {
+  "en": "Standalone dashboard port",
+  "ja": "ダッシュボードのポート"
+ },
+ "独立面板 LAN 接口": {
+  "en": "Standalone LAN interface",
+  "ja": "ダッシュボードのLANインターフェース"
+ },
+ "只绑定此逻辑接口的私有 IPv4 地址，不创建外网放行规则。保存应用后刷新页面，使用打开按钮。": {
+  "en": "Binds only to this interface’s private IPv4 address. No WAN firewall rule is added. Save & Apply, reload, then use the open button.",
+  "ja": "このインターフェースのプライベートIPv4アドレスのみで待ち受けます。WANの許可ルールは追加しません。保存・適用後に再読込し、開くボタンを使用してください。"
+ },
+ "打开独立面板": {
+  "en": "Open standalone dashboard",
+  "ja": "独立ダッシュボードを開く"
+ },
+ "路由器配置": {
+  "en": "Router settings",
+  "ja": "ルーター設定"
+ },
+ "请选择 LAN 逻辑接口": {
+  "en": "Select a LAN logical interface",
+  "ja": "LAN論理インターフェースを選択してください"
  }
 };
 

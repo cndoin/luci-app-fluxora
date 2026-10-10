@@ -37,3 +37,7 @@ With a simulated 3650-day / 2160-hour dataset in the original WSL benchmark, the
 Full service lifecycle, firmware-specific LuCI theme behavior, power-loss recovery, offload counters and long-term hardware memory use should be checked on each deployment. Device counters depend on drivers/offload implementation; equality with ISP billing is not promised. Time synchronization is required. Install dependencies from the firmware's matching repositories.
 
 Reports should include firmware, device name, package version, browser and reproduction steps, without credentials or private network information.
+
+## Standalone checks (1.5.0)
+
+`test_standalone.cjs` runs the shipped shared bundle over HTTP and checks refresh, theme persistence, language changes, fullscreen, mobile overflow and serialized requests. `test_web.py` uses the real OpenWrt 24.10.5 uhttpd in an isolated root, checking HTML/assets, read-only JSON, denied writes/commands/Host/Origin/traversal, the off switch and private-address/port validation. These do not replace live procd/network-event or long-term router hardware validation.
